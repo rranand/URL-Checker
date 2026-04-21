@@ -7,15 +7,7 @@ import (
 	"github.com/rranand/URL-Checker/internal/model"
 )
 
-func URLChecker(url string) model.ResultModel {
-	client := http.Client{
-		Timeout: timeoutDuration,
-		Transport: &http.Transport{
-			MaxIdleConns:        maxIdleConns,
-			MaxIdleConnsPerHost: maxIdleConnsPerHost,
-			IdleConnTimeout:     idleConnTimeout,
-		},
-	}
+func URLChecker(client *http.Client, url string) model.ResultModel {
 
 	res := model.ResultModel{
 		URL: url,

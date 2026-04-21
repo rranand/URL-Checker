@@ -3,8 +3,8 @@ package urlchecker
 import "time"
 
 var (
-	timeoutDuration     = 3 * time.Second
-	maxIdleConns        = 100
-	maxIdleConnsPerHost = 10
-	idleConnTimeout     = 30 * time.Second
+	TimeoutDuration     = 3 * time.Second
+	MaxIdleConns        = 100
+	MaxIdleConnsPerHost = 10
+	IdleConnTimeout     = 30 * time.Second
 )

@@ -1,17 +1,26 @@
 package worker
 
 import (
-	"fmt"
+	"net/http"
 	"sync"
 
 	"github.com/rranand/URL-Checker/internal/model"
-	urlchecker "github.com/rranand/URL-Checker/internal/urlChecker"
+	"github.com/rranand/URL-Checker/internal/urlchecker"
 )
 
 func InitiatateWorkerPool(workerPoolSize int, wg *sync.WaitGroup, urlChan <-chan string, resChan chan<- model.ResultModel) {
-	for i := range workerPoolSize {
+	client := http.Client{
+		Timeout: urlchecker.TimeoutDuration,
+		Transport: &http.Transport{
+			MaxIdleConns:        urlchecker.MaxIdleConns,
+			MaxIdleConnsPerHost: urlchecker.MaxIdleConnsPerHost,
+			IdleConnTimeout:     urlchecker.IdleConnTimeout,
+		},
+	}
+
+	for range workerPoolSize {
 		wg.Add(1)
-		go workerPool(i, wg, urlChan, resChan)
+		go workerPool(&client, wg, urlChan, resChan)
 	}
 
 	go func() {
@@ -20,16 +29,13 @@ func InitiatateWorkerPool(workerPoolSize int, wg *sync.WaitGroup, urlChan <-chan
 	}()
 }
 
-func workerPool(workerPoolId int, wg *sync.WaitGroup, urlChan <-chan string, resChan chan<- model.ResultModel) {
+func workerPool(client *http.Client, wg *sync.WaitGroup, urlChan <-chan string, resChan chan<- model.ResultModel) {
 	defer func() {
-		fmt.Println("worker pool closed, id:", workerPoolId)
 		wg.Done()
 	}()
 
-	fmt.Println("worker pool initialized, id:", workerPoolId)
-
 	for url := range urlChan {
-		resChan <- urlchecker.URLChecker(url)
+		resChan <- urlchecker.URLChecker(client, url)
 	}
 
 }

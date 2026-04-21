@@ -1,7 +1,10 @@
-package urlchecker
+package urlchecker_test
 
 import (
+	"net/http"
 	"testing"
+
+	"github.com/rranand/URL-Checker/internal/urlchecker"
 )
 
 type URLCheckerTest struct {
@@ -12,6 +15,14 @@ type URLCheckerTest struct {
 }
 
 func TestHealthyURL(t *testing.T) {
+	client := http.Client{
+		Timeout: urlchecker.TimeoutDuration,
+		Transport: &http.Transport{
+			MaxIdleConns:        urlchecker.MaxIdleConns,
+			MaxIdleConnsPerHost: urlchecker.MaxIdleConnsPerHost,
+			IdleConnTimeout:     urlchecker.IdleConnTimeout,
+		},
+	}
 
 	tests := []URLCheckerTest{
 		{Name: "Testing api.github.com", URL: "https://api.github.com", ExpectedStatusCode: 200, ExpectedError: false},
@@ -22,7 +33,7 @@ func TestHealthyURL(t *testing.T) {
 
 	for i := range tests {
 		t.Run(tests[i].Name, func(t *testing.T) {
-			res := URLChecker(tests[i].URL)
+			res := urlchecker.URLChecker(&client, tests[i].URL)
 
 			if tests[i].ExpectedError != (res.Err != nil) {
 				t.Errorf("%s failed; %s want=%t Got=%t Error=%v", tests[i].Name, "ExpectedError", tests[i].ExpectedError, (res.Err != nil), res.Err)
@@ -38,6 +49,15 @@ func TestHealthyURL(t *testing.T) {
 }
 
 func TestTimeoutURL(t *testing.T) {
+	client := http.Client{
+		Timeout: urlchecker.TimeoutDuration,
+		Transport: &http.Transport{
+			MaxIdleConns:        urlchecker.MaxIdleConns,
+			MaxIdleConnsPerHost: urlchecker.MaxIdleConnsPerHost,
+			IdleConnTimeout:     urlchecker.IdleConnTimeout,
+		},
+	}
+
 	tests := []URLCheckerTest{
 		{
 			Name:               "No Timeout",
@@ -61,7 +81,7 @@ func TestTimeoutURL(t *testing.T) {
 
 	for i := range tests {
 		t.Run(tests[i].Name, func(t *testing.T) {
-			res := URLChecker(tests[i].URL)
+			res := urlchecker.URLChecker(&client, tests[i].URL)
 
 			if tests[i].ExpectedError != (res.Err != nil) {
 				t.Errorf("%s failed; %s want=%t Got=%t Error=%v", tests[i].Name, "ExpectedError", tests[i].ExpectedError, (res.Err != nil), res.Err)
@@ -76,6 +96,15 @@ func TestTimeoutURL(t *testing.T) {
 }
 
 func TestRedirectURL(t *testing.T) {
+	client := http.Client{
+		Timeout: urlchecker.TimeoutDuration,
+		Transport: &http.Transport{
+			MaxIdleConns:        urlchecker.MaxIdleConns,
+			MaxIdleConnsPerHost: urlchecker.MaxIdleConnsPerHost,
+			IdleConnTimeout:     urlchecker.IdleConnTimeout,
+		},
+	}
+
 	tests := []URLCheckerTest{
 		{
 			Name:               "Redirect github.com (http → https)",
@@ -105,7 +134,7 @@ func TestRedirectURL(t *testing.T) {
 
 	for i := range tests {
 		t.Run(tests[i].Name, func(t *testing.T) {
-			res := URLChecker(tests[i].URL)
+			res := urlchecker.URLChecker(&client, tests[i].URL)
 
 			if tests[i].ExpectedError != (res.Err != nil) {
 				t.Errorf("%s failed; %s want=%t Got=%t Error=%v", tests[i].Name, "ExpectedError", tests[i].ExpectedError, (res.Err != nil), res.Err)
@@ -120,6 +149,15 @@ func TestRedirectURL(t *testing.T) {
 }
 
 func TestInvalidSSLURL(t *testing.T) {
+	client := http.Client{
+		Timeout: urlchecker.TimeoutDuration,
+		Transport: &http.Transport{
+			MaxIdleConns:        urlchecker.MaxIdleConns,
+			MaxIdleConnsPerHost: urlchecker.MaxIdleConnsPerHost,
+			IdleConnTimeout:     urlchecker.IdleConnTimeout,
+		},
+	}
+
 	tests := []URLCheckerTest{
 		{
 			Name:               "Expired SSL",
@@ -155,7 +193,7 @@ func TestInvalidSSLURL(t *testing.T) {
 
 	for i := range tests {
 		t.Run(tests[i].Name, func(t *testing.T) {
-			res := URLChecker(tests[i].URL)
+			res := urlchecker.URLChecker(&client, tests[i].URL)
 
 			if tests[i].ExpectedError != (res.Err != nil) {
 				t.Errorf("%s failed; %s want=%t Got=%t Error=%v", tests[i].Name, "ExpectedError", tests[i].ExpectedError, (res.Err != nil), res.Err)
