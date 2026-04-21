@@ -2,41 +2,11 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	"time"
+	"sync"
+
+	"github.com/rranand/URL-Checker/internal/model"
+	"github.com/rranand/URL-Checker/internal/worker"
 )
-
-type Result struct {
-	url        string
-	statusCode int
-	err        error
-	duration   time.Duration
-}
-
-func checkHealth(url string) Result {
-	client := http.Client{
-		Timeout: TimeoutDuration,
-	}
-
-	res := Result{
-		url: url,
-	}
-
-	start := time.Now()
-	resp, err := client.Get(url)
-	duration := time.Since(start)
-
-	if err != nil {
-		res.err = err
-	} else {
-		defer resp.Body.Close()
-		res.statusCode = resp.StatusCode
-	}
-
-	res.duration = duration
-
-	return res
-}
 
 func main() {
 	urls := []string{
@@ -72,12 +42,22 @@ func main() {
 		"http://invalid.url.test",
 	}
 
+	var wg sync.WaitGroup
+	workerPoolSize := 10
+
+	urlChan := make(chan string, workerPoolSize)
+	resChan := make(chan model.ResultModel, workerPoolSize)
+
+	worker.InitiatateWorkerPool(workerPoolSize, &wg, urlChan, resChan)
+
 	for i := range urls {
-		res := checkHealth(urls[i])
-
-		if res.err != nil {
-			fmt.Println(res.err)
-		}
-
+		urlChan <- urls[i]
 	}
+
+	close(urlChan)
+
+	for res := range resChan {
+		fmt.Println(res)
+	}
+
 }
