@@ -1,3 +1,4 @@
+// Package urlchecker provides tools to montior health of an URL.
 package urlchecker
 
 import (
@@ -7,6 +8,10 @@ import (
 	"github.com/rranand/URL-Checker/internal/model"
 )
 
+// URLChecker accepts http client and URL.
+// It generate GET http request to check health of given URL.
+// This is a pretty straight forward, recording time taken to get the health check.
+// Store error and status code received from response.
 func URLChecker(client *http.Client, url string) model.ResultModel {
 
 	res := model.ResultModel{
