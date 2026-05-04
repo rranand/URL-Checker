@@ -1,8 +1,11 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"log/slog"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/rranand/URL-Checker/internal/model"
 	"github.com/rranand/URL-Checker/internal/worker"
@@ -42,16 +45,18 @@ func main() {
 		"http://invalid.url.test",
 	}
 
+	ctxWithCancel, cancelFn := context.WithCancel(context.Background())
+
 	// Creating waitgroup to track all request completion, as we are creating
 	// threads (workers) to monitor URL health, it may happen URL health is still
 	// being checked and main thread exit from the program.
 	var wg sync.WaitGroup
 
 	// Defining number of workers which will montior the health of URLs.
-	workerPoolSize := 10
+	workerPoolSize := 5
 
 	// Defining size of buffer, it is related with workerPoolSize.
-	buffer := workerPoolSize * 2
+	// buffer := workerPoolSize * 2
 
 	// Assume we have 25 URLs, 10 workers, 20 buffer for channels.
 
@@ -66,11 +71,21 @@ func main() {
 	// workerPoolSize, so few workers will always be free. We are not consuming all worker pools.
 	// Remaining worker pool will waste.
 
-	urlChan := make(chan string, buffer)
-	resChan := make(chan model.ResultModel, buffer)
+	// urlChan := make(chan string, buffer)
+	// resChan := make(chan model.ResultModel, buffer)
+
+	// Case 3 - What if there is no buffer assigned during initialization
+	// What is difference between buffered and unbuffered? - In case of unbuffered
+	// channel there is space for messages, assume it like cup-thread-phone; cup is url,
+	// thread is channel, phone is url checker. You can't store voice in the thread, similary
+	// no message will be stored in channel, but in case of buffered one, message will be stored
+	// in channel, just like queue.
+
+	urlChan := make(chan string)
+	resChan := make(chan model.ResultModel)
 
 	// Initiating worker pools
-	worker.InitiatateWorkerPool(workerPoolSize, &wg, urlChan, resChan)
+	worker.InitiatateWorkerPool(workerPoolSize, ctxWithCancel, &wg, urlChan, resChan)
 
 	// ----------------------------------------------------------------------------------------------
 
@@ -89,7 +104,7 @@ func main() {
 
 	// go func() {
 	// 	for res := range resChan {
-	// 		fmt.Println(res)
+	// 		slog.Info(res.Status())
 	// 	}
 	// }()
 
@@ -106,19 +121,24 @@ func main() {
 	// We have created a thread here which will send url to
 	// url channel from urls list. Later, we are started listening
 	// from result channel for the health reports.
+	go worker.IngestURL(ctxWithCancel, urlChan, urls)
 
-	// In this case, we are only exiting from the program only if all results are processed, and url channel
-	// will be closed once all urls are sent to url channel.
+	stopCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	go func() {
-		for i := range urls {
-			urlChan <- urls[i]
-		}
-		close(urlChan)
+		<-stopCtx.Done()
+		cancelFn()
+		slog.Info("server shutdown complete")
 	}()
 
 	for res := range resChan {
-		fmt.Println(res.Status())
+		slog.Info("health check",
+			"worker_id", res.WorkerID,
+			"url", res.URL,
+			"status", res.Status(),
+			"latency", res.Duration,
+		)
 	}
 
 }

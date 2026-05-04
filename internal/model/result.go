@@ -1,7 +1,9 @@
 // Package model contains models which contains metadata of URL.
 package model
 
-import "time"
+import (
+	"time"
+)
 
 // ResultModel contains metadata of URL health.
 type ResultModel struct {
@@ -9,26 +11,27 @@ type ResultModel struct {
 	StatusCode int
 	Err        error
 	Duration   time.Duration
+	WorkerID   int
 }
 
 // Status return status of URL's health as string
 func (r *ResultModel) Status() string {
-	status := r.URL + " is "
+	status := ""
 
 	if r.Err != nil {
-		status += "DOWN"
+		status = "DOWN"
 	} else {
 
 		if r.StatusCode >= 200 && r.StatusCode < 300 {
-			status += "HEALTHY"
+			status = "HEALTHY"
 		} else if r.StatusCode >= 300 && r.StatusCode < 400 {
-			status += "REDIRECT"
+			status = "REDIRECT"
 		} else if r.StatusCode >= 400 && r.StatusCode < 500 {
-			status += "CLIENT_ERROR"
+			status = "CLIENT_ERROR"
 		} else {
-			status += "SERVER_ERROR"
+			status = "SERVER_ERROR"
 		}
 	}
 
-	return status + ", Time Taken : " + r.Duration.String()
+	return status
 }
