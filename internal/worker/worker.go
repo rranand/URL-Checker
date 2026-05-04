@@ -56,11 +56,14 @@ func workerPool(workerID int, ctx context.Context, client *http.Client, wg *sync
 	slog.Debug("worker initialized", "worker_id", workerID)
 
 workerLoop:
-	for url := range urlChan {
+	for {
 		select {
 		case <-ctx.Done():
 			break workerLoop
-		default:
+		case url, ok := <-urlChan:
+			if !ok {
+				break workerLoop
+			}
 			result := urlchecker.URLChecker(client, url)
 			result.WorkerID = workerID
 			resChan <- result
