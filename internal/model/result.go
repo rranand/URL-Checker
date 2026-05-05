@@ -2,6 +2,7 @@
 package model
 
 import (
+	"log/slog"
 	"time"
 )
 
@@ -34,4 +35,13 @@ func (r *ResultModel) Status() string {
 	}
 
 	return status
+}
+
+func (r *ResultModel) Log() {
+	slog.Info("health check",
+		"worker_id", r.WorkerID,
+		"url", r.URL,
+		"status", r.Status(),
+		"latency", r.Duration,
+	)
 }

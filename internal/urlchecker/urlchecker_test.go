@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/rranand/URL-Checker/internal/model"
 	"github.com/rranand/URL-Checker/internal/urlchecker"
 )
 
@@ -15,13 +16,11 @@ type URLCheckerTest struct {
 }
 
 func TestHealthyURL(t *testing.T) {
+	config := model.DefaultConfig()
+
 	client := http.Client{
-		Timeout: urlchecker.TimeoutDuration,
-		Transport: &http.Transport{
-			MaxIdleConns:        urlchecker.MaxIdleConns,
-			MaxIdleConnsPerHost: urlchecker.MaxIdleConnsPerHost,
-			IdleConnTimeout:     urlchecker.IdleConnTimeout,
-		},
+		Timeout:   config.TimeoutDuration,
+		Transport: config.GetHTTPTransport(),
 	}
 
 	tests := []URLCheckerTest{
@@ -49,13 +48,11 @@ func TestHealthyURL(t *testing.T) {
 }
 
 func TestTimeoutURL(t *testing.T) {
+	config := model.DefaultConfig()
+
 	client := http.Client{
-		Timeout: urlchecker.TimeoutDuration,
-		Transport: &http.Transport{
-			MaxIdleConns:        urlchecker.MaxIdleConns,
-			MaxIdleConnsPerHost: urlchecker.MaxIdleConnsPerHost,
-			IdleConnTimeout:     urlchecker.IdleConnTimeout,
-		},
+		Timeout:   config.TimeoutDuration,
+		Transport: config.GetHTTPTransport(),
 	}
 
 	tests := []URLCheckerTest{
@@ -96,13 +93,11 @@ func TestTimeoutURL(t *testing.T) {
 }
 
 func TestRedirectURL(t *testing.T) {
+	config := model.DefaultConfig()
+
 	client := http.Client{
-		Timeout: urlchecker.TimeoutDuration,
-		Transport: &http.Transport{
-			MaxIdleConns:        urlchecker.MaxIdleConns,
-			MaxIdleConnsPerHost: urlchecker.MaxIdleConnsPerHost,
-			IdleConnTimeout:     urlchecker.IdleConnTimeout,
-		},
+		Timeout:   config.TimeoutDuration,
+		Transport: config.GetHTTPTransport(),
 	}
 
 	tests := []URLCheckerTest{
@@ -149,13 +144,11 @@ func TestRedirectURL(t *testing.T) {
 }
 
 func TestInvalidSSLURL(t *testing.T) {
+	config := model.DefaultConfig()
+
 	client := http.Client{
-		Timeout: urlchecker.TimeoutDuration,
-		Transport: &http.Transport{
-			MaxIdleConns:        urlchecker.MaxIdleConns,
-			MaxIdleConnsPerHost: urlchecker.MaxIdleConnsPerHost,
-			IdleConnTimeout:     urlchecker.IdleConnTimeout,
-		},
+		Timeout:   config.TimeoutDuration,
+		Transport: config.GetHTTPTransport(),
 	}
 
 	tests := []URLCheckerTest{

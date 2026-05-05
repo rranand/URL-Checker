@@ -2,9 +2,11 @@
 package worker
 
 import (
+	"bufio"
 	"context"
 	"log/slog"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/rranand/URL-Checker/internal/model"
@@ -20,14 +22,10 @@ import (
 // At last, we are waiting until wait group counter reset to zero which represents all health checks of given urls
 // are completed, we are closing the result channel as no more data will given to the channel and in main program, channel
 // will process remaining data in buffer and exit from the loop once all result are processed.
-func InitiatateWorkerPool(workerPoolSize int, ctx context.Context, wg *sync.WaitGroup, urlChan <-chan string, resChan chan<- model.ResultModel) {
+func InitiatateWorkerPool(workerPoolSize int, config model.Config, ctx context.Context, wg *sync.WaitGroup, urlChan <-chan string, resChan chan<- model.ResultModel) {
 	client := http.Client{
-		Timeout: urlchecker.TimeoutDuration,
-		Transport: &http.Transport{
-			MaxIdleConns:        urlchecker.MaxIdleConns,
-			MaxIdleConnsPerHost: urlchecker.MaxIdleConnsPerHost,
-			IdleConnTimeout:     urlchecker.IdleConnTimeout,
-		},
+		Timeout:   config.TimeoutDuration,
+		Transport: config.GetHTTPTransport(),
 	}
 
 	for i := range workerPoolSize {
@@ -87,4 +85,37 @@ workerLoop:
 	}
 
 	close(urlChan)
+}
+
+// IngestURLFromFile will ingest all urls from the file. If context is cancelled,
+// it will exits from the loop and close the channel.
+func IngestURLFromFile(ctx context.Context, urlChan chan<- string, filename *string) error {
+	file, err := os.Open(*filename)
+
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		file.Close()
+		close(urlChan)
+	}()
+
+	scanner := bufio.NewScanner(file)
+
+workerLoop:
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			break workerLoop
+		default:
+			urlChan <- scanner.Text()
+		}
+	}
+
+	if err = scanner.Err(); err != nil {
+		return err
+	}
+
+	return nil
 }

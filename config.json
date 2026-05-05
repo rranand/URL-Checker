@@ -1,0 +1,7 @@
+{
+    "timeout_duration" : 5,
+    "max_idle_conn" : 90,
+    "max_idle_conn_per_host" : 10,
+    "idle_conn_timeout_duration" : 20,
+    "no_of_workers": 10
+}

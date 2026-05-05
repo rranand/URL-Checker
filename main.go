@@ -2,8 +2,12 @@ package main
 
 import (
 	"context"
+	"flag"
+	"io"
 	"log/slog"
+	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -12,38 +16,33 @@ import (
 )
 
 func main() {
-	urls := []string{
-		"https://www.google.com",
-		"https://www.cloudflare.com",
-		"https://api.github.com",
-		"https://httpbin.org/get",
+	urlFileName := flag.String("filename", "", "file of urls")
+	configFileName := flag.String("config", "", "configuration file")
 
-		"http://github.com",
-		"http://google.com",
-		"http://httpbin.org/redirect/1",
-		"http://httpbin.org/redirect/3",
-		"http://httpbin.org/redirect-to?url=https://www.google.com",
+	flag.Parse()
 
-		"https://httpbin.org/status/400",
-		"https://httpbin.org/status/401",
-		"https://httpbin.org/status/403",
-		"https://httpbin.org/status/404",
+	config, err := model.ParseConfig(*configFileName)
 
-		"https://httpbin.org/status/500",
-		"https://httpbin.org/status/502",
-		"https://httpbin.org/status/503",
-
-		"https://httpbin.org/delay/1",
-		"https://httpbin.org/delay/3",
-		"https://deelay.me/5000/https://www.google.com",
-
-		"https://expired.badssl.com/",
-		"https://self-signed.badssl.com/",
-		"https://wrong.host.badssl.com/",
-
-		"http://localhost:9999",
-		"http://invalid.url.test",
+	if err != nil {
+		slog.Error(err.Error())
+		os.Exit(0)
 	}
+
+	// Adding output in the prefix of original filename and printing output of url checker log in file.
+	fileNameSplit := strings.Split(*urlFileName, "/")
+	outputFilePath := strings.Replace(*urlFileName, fileNameSplit[len(fileNameSplit)-1], "output-"+fileNameSplit[len(fileNameSplit)-1], 1)
+	file, err := os.OpenFile(outputFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+
+	if err != nil {
+		slog.Error(err.Error())
+		os.Exit(0)
+	}
+
+	defer file.Close()
+
+	writer := io.MultiWriter(os.Stdout, file)
+	logger := slog.New(slog.NewTextHandler(writer, nil))
+	slog.SetDefault(logger)
 
 	ctxWithCancel, cancelFn := context.WithCancel(context.Background())
 
@@ -52,11 +51,8 @@ func main() {
 	// being checked and main thread exit from the program.
 	var wg sync.WaitGroup
 
-	// Defining number of workers which will montior the health of URLs.
-	workerPoolSize := 5
-
 	// Defining size of buffer, it is related with workerPoolSize.
-	// buffer := workerPoolSize * 2
+	// buffer := config.NoOfWorkers * 2
 
 	// Assume we have 25 URLs, 10 workers, 20 buffer for channels.
 
@@ -85,7 +81,7 @@ func main() {
 	resChan := make(chan model.ResultModel)
 
 	// Initiating worker pools
-	worker.InitiatateWorkerPool(workerPoolSize, ctxWithCancel, &wg, urlChan, resChan)
+	worker.InitiatateWorkerPool(config.NoOfWorkers, config, ctxWithCancel, &wg, urlChan, resChan)
 
 	// ----------------------------------------------------------------------------------------------
 
@@ -119,9 +115,15 @@ func main() {
 	// ----------------------------------------------------------------------------------------------
 
 	// We have created a thread here which will send url to
-	// url channel from urls list. Later, we are started listening
+	// url channel from file. Later, we are started listening
 	// from result channel for the health reports.
-	go worker.IngestURL(ctxWithCancel, urlChan, urls)
+	go func() {
+		err := worker.IngestURLFromFile(ctxWithCancel, urlChan, urlFileName)
+		if err != nil {
+			slog.Error(err.Error())
+			cancelFn()
+		}
+	}()
 
 	stopCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -133,12 +135,6 @@ func main() {
 	}()
 
 	for res := range resChan {
-		slog.Info("health check",
-			"worker_id", res.WorkerID,
-			"url", res.URL,
-			"status", res.Status(),
-			"latency", res.Duration,
-		)
+		res.Log()
 	}
-
 }
